@@ -1146,20 +1146,27 @@ class LeggedRobot(BaseTask):
         From SpotMicro:
         https://github.com/OpenQuadruped/spot_mini_mini/blob/spot/spotmicro/Kinematics/LegKinematics.py
         """
-        # rename links
-        HIP_LINK_LENGTH = 0.0847
-        THIGH_LINK_LENGTH = 0.213
-        CALF_LINK_LENGTH = 0.213
+        # rename links. The link lengths and hip offsets default to the Go1 values but can
+        # be overridden per-robot in the cfg.init_state (e.g. for mybot_v3), keeping
+        # backward compatibility with existing robots that do not define them.
+        ik_cfg = self.cfg.init_state
+        HIP_LINK_LENGTH = getattr(ik_cfg, "HIP_LINK_LENGTH", 0.0847)
+        THIGH_LINK_LENGTH = getattr(ik_cfg, "THIGH_LINK_LENGTH", 0.213)
+        CALF_LINK_LENGTH = getattr(ik_cfg, "CALF_LINK_LENGTH", 0.213)
         shoulder_length = HIP_LINK_LENGTH
         elbow_length = THIGH_LINK_LENGTH
         wrist_length = CALF_LINK_LENGTH
+
+        # Hip offsets are expressed in the reordered [FR, FL, RR, RL] notation used below.
+        ik_hip_x_offsets = getattr(ik_cfg, "ik_hip_x_offsets", [0.1881, 0.1881, -0.1881, -0.1881])
+        ik_hip_y_offsets = getattr(ik_cfg, "ik_hip_y_offsets", [-0.04205, 0.04205, -0.04205, 0.04205])
 
         # Need to reorder the feet/joint angles to match different notation:
 
         foot_pos = foot_pos[:,torch.tensor([1,0,3,2]),:]
         # coords
-        x = foot_pos[:,:,0] - torch.tensor([0.1881,0.1881,-0.1881,-0.1881]).to(self.device)
-        y = foot_pos[:,:,1] - torch.tensor([-0.04205,0.04205,-0.04205,0.04205]).to(self.device)
+        x = foot_pos[:,:,0] - torch.tensor(ik_hip_x_offsets).to(self.device)
+        y = foot_pos[:,:,1] - torch.tensor(ik_hip_y_offsets).to(self.device)
         z = foot_pos[:,:,2]
 
 
